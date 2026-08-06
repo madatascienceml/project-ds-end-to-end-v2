@@ -1,0 +1,11 @@
+pandas
+numpy
+tensorflow
+scikit-learn
+sentence-transformers
+faiss-cpu
+streamlit
+fastapi
+openai
+python-dotenv
+pytest
