@@ -9,3 +9,54 @@ Experiment 1 — Baseline CNN (from scratch)
   in next phase.
 
   
+  ## Experiment 2 — EfficientNetB0, Phase 1 (Feature Extraction)
+- Architecture: EfficientNetB0 (frozen, ImageNet weights) + Dropout(0.3) + Dense(5)
+- Trainable params: 6,405 (vs 11,169,605 in baseline)
+- Preprocessing: EfficientNet-specific (tf.keras.applications.efficientnet.preprocess_input), 
+  NOT /255.0 — using generic normalisation caused near-random performance (~20% accuracy) 
+  before this fix
+- Trained: 11 epochs (EarlyStopping, patience=3), best weights restored from epoch 8
+- Val accuracy: 0.72, Val loss: 0.73
+- QWK: 0.7910
+- Per-class recall: Grade 0: 0.923, Grade 1: 0.564, Grade 2: 0.553, Grade 3: 0.586, Grade 4: 0.341
+- Key finding: massive improvement over baseline, especially Grade 3 recall 
+  (0.103 → 0.586). Slight recall drop on Grade 1 vs baseline, with errors 
+  concentrated toward Grade 2 (adjacent class) — consistent with QWK's 
+  tolerance for near-miss errors.
+
+
+  ## Experiment 3 — EfficientNetB0, Phase 2 (Fine-tuning)
+- Unfroze last 20 layers of EfficientNetB0 base (1,136,181 trainable params)
+- Learning rate: 1e-5 (Adam)
+- Trained: 4 epochs (EarlyStopping, patience=3), best weights restored from epoch 1
+- QWK: 0.7987 (vs 0.7910 in Feature Extraction — marginal global improvement)
+- Per-class recall: Grade 0: 0.952, Grade 1: 0.309, Grade 2: 0.353, Grade 3: 0.690, Grade 4: 0.455
+- Key finding: fine-tuning improved Grade 3 recall substantially (0.586 → 0.690) 
+  — the clinically critical class — at the cost of reduced recall on Grades 1-2, 
+  where predictions shifted toward more severe grades. Given the project's 
+  design priority on catching severe cases (false negatives are the highest-
+  cost error), this model is selected as final over Feature Extraction despite 
+  its more mixed per-class profile.
+
+
+## Final model selection
+
+**Selected model**: fine-tuned EfficientNetB0 (Experiment 3), over the
+feature-extraction-only model (Experiment 2).
+
+- QWK: 0.7987 (fine-tuned) vs 0.7910 (feature extraction) — a marginal
+  global difference.
+- Grade 3 recall: 0.690 (fine-tuned) vs 0.586 (feature extraction) — the
+  decisive factor. Grade 3 is the clinically critical class where a false
+  negative carries the highest cost, so materially better recall there is
+  preferred despite a more mixed per-class profile elsewhere (Grade 1-2
+  recall dropped under fine-tuning).
+
+**Grad-CAM finding**: across all grades, model attention concentrates
+consistently on the optic disc and surrounding vasculature, rather than
+shifting toward grade-specific lesions (microaneurysms, haemorrhages, hard
+exudates) as severity increases. This is a plausible explanation for the
+confusion between adjacent grades in the confusion matrix, and motivated a
+stricter safety net in the rule engine (`src/rules/triage.py`): Grades 1-3
+require confidence ≥0.75, not just the base 0.60 threshold, before
+bypassing human review.
