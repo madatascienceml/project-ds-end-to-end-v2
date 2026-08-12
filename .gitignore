@@ -27,6 +27,7 @@ data/raw/*
 # --- Trained models / vector index (heavy, regenerable) ---
 models/*
 !models/.gitkeep
+data/guidelines/index/
 *.h5
 *.keras
 *.pt

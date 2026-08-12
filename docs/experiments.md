@@ -60,3 +60,18 @@ confusion between adjacent grades in the confusion matrix, and motivated a
 stricter safety net in the rule engine (`src/rules/triage.py`): Grades 1-3
 require confidence ≥0.75, not just the base 0.60 threshold, before
 bypassing human review.
+
+
+### Retrieval evaluation note
+
+Manual verification with 10 domain-relevant queries showed 8/10 correct
+top-1 retrieval. Two queries (urgent referral, proliferative DR)
+retrieved the correct chunk at rank 2 rather than rank 1, likely due to
+semantic overlap between sections and the small corpus size (7 chunks
+total). A mitigation was tested — prefixing each chunk with its section
+title to sharpen the embedding signal — but this slightly regressed
+performance (7/10) rather than improving it, as short prefixes were
+over-weighted relative to longer chunk bodies by the embedding model.
+The original chunking was retained. Mitigated at the generation stage
+by retrieving top-3 chunks (not just top-1), ensuring the correct
+source remains in context even when not ranked first.
