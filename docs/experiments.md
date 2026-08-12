@@ -99,3 +99,32 @@ in one case, source_chunks listed all 3 retrieved chunks while the
 narrative guideline_applied text only named 2 of them explicitly — a
 citation-completeness gap, not a faithfulness violation, since the
 underlying content remained accurate.
+
+
+### Model loading fix — quantization_config incompatibility (Block 18)
+
+`models/efficientnetb0_finetuned.keras`, saved from Colab, failed to
+load locally with an error deserializing the Dense layer:
+`Unrecognized keyword arguments passed to Dense: {'quantization_config': None}`.
+
+Root cause: the Colab environment's Keras build supports a
+`quantization_config` parameter on Dense layers and wrote it into the
+saved config.json, but the latest stable Keras available on PyPI
+(3.12.3, and 3.12.4 — both tried, neither helped) doesn't recognise
+that key on load. This isn't a "too old" version problem — both
+tensorflow (2.21.0) and keras (3.12.4) were already at the newest
+release available; there is no newer stable version to upgrade to.
+
+**Fix**: copied the file to
+`models/efficientnetb0_finetuned_patched.keras`, stripped the
+`quantization_config` key from the Dense layer's config.json inside
+that copy only (a .keras file is a zip archive), and re-zipped it. The
+patched copy loads successfully with the correct architecture
+(EfficientNetB0 + Dropout + Dense(5), matching the original training
+notebook's saved parameter counts exactly). The original file was never
+modified — confirmed via file size and the fact that it was only ever
+opened in read mode.
+
+Both `.keras` files are excluded from git via `.gitignore` (regenerable
+model artifacts) — this note exists so the fix is reproducible without
+relying on the files themselves being committed.

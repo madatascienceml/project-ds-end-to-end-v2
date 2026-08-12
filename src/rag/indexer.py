@@ -190,5 +190,40 @@ def build_index(guidelines_path=GUIDELINES_PATH, index_dir=INDEX_DIR):
     return index, chunk_mapping
 
 
+def load_index(index_path=INDEX_PATH, chunks_path=CHUNKS_PATH):
+    """Load the persisted FAISS index and its chunk_id/text mapping.
+
+    Shared by test_retrieval.py, eval_rag.py, and the Streamlit app —
+    the single place this happens, so all three read the same on-disk
+    format the same way.
+    """
+    index = faiss.read_index(str(index_path))
+    with open(chunks_path, encoding="utf-8") as f:
+        chunk_mapping = json.load(f)
+    return index, chunk_mapping
+
+
+def retrieve(query, index, chunk_mapping, top_k=3):
+    """Embed a query with embed_texts() and return its top_k nearest chunks.
+
+    Each result dict has rank, distance, chunk_id, and text.
+    """
+    query_embedding = embed_texts([query])
+    distances, indices = index.search(query_embedding, top_k)
+
+    results = []
+    for rank, (idx, dist) in enumerate(zip(indices[0], distances[0]), start=1):
+        if idx == -1:  # FAISS pads with -1 if top_k > number of indexed vectors
+            continue
+        entry = chunk_mapping[str(idx)]
+        results.append({
+            "rank": rank,
+            "distance": float(dist),
+            "chunk_id": entry["chunk_id"],
+            "text": entry["text"],
+        })
+    return results
+
+
 if __name__ == "__main__":
     build_index()

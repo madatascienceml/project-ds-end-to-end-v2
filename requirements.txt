@@ -1,6 +1,8 @@
 pandas
 numpy
-tensorflow
+Pillow
+opencv-python-headless
+tensorflow>=2.16
 scikit-learn
 sentence-transformers
 faiss-cpu

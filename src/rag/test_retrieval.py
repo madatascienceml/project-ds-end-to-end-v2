@@ -12,20 +12,17 @@ workflow) — run it directly, not via `pytest`. All work happens inside
 main(), guarded by `if __name__ == "__main__"`, so importing this module
 (e.g. if pytest happens to collect it) has no side effects.
 
-Reuses embed_texts() from indexer.py rather than loading its own
-SentenceTransformer instance — the whole point of that shared function is
-that index-build time and query time always use the same embedding model.
+load_index() and retrieve() live in indexer.py, not here — they're
+reused by eval_rag.py and the Streamlit app too, so this "test_" named
+script isn't the right home for shared, non-test logic.
 """
 
-import json
 import sys
 from pathlib import Path
 
-import faiss
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.rag.indexer import CHUNKS_PATH, INDEX_PATH, embed_texts
+from src.rag.indexer import load_index, retrieve
 
 TEST_QUERIES = [
     "What follow-up interval is recommended for a patient with no diabetic retinopathy?",
@@ -39,33 +36,6 @@ TEST_QUERIES = [
     "Why is the follow-up interval for severe NPDR shorter than standard screening protocols?",
     "What acquisition factors, such as pupil dilation, affect fundus photography quality?",
 ]
-
-
-def load_index(index_path=INDEX_PATH, chunks_path=CHUNKS_PATH):
-    """Load the persisted FAISS index and its chunk_id/text mapping."""
-    index = faiss.read_index(str(index_path))
-    with open(chunks_path, encoding="utf-8") as f:
-        chunk_mapping = json.load(f)
-    return index, chunk_mapping
-
-
-def retrieve(query, index, chunk_mapping, top_k=3):
-    """Embed a query with embed_texts() and return its top_k nearest chunks."""
-    query_embedding = embed_texts([query])
-    distances, indices = index.search(query_embedding, top_k)
-
-    results = []
-    for rank, (idx, dist) in enumerate(zip(indices[0], distances[0]), start=1):
-        if idx == -1:  # FAISS pads with -1 if top_k > number of indexed vectors
-            continue
-        entry = chunk_mapping[str(idx)]
-        results.append({
-            "rank": rank,
-            "distance": float(dist),
-            "chunk_id": entry["chunk_id"],
-            "text": entry["text"],
-        })
-    return results
 
 
 def _print_results(query, results):

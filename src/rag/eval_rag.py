@@ -23,8 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.rag.generator import generate_report
-from src.rag.indexer import CHUNKS_PATH
-from src.rag.test_retrieval import TEST_QUERIES, load_index, retrieve
+from src.rag.indexer import CHUNKS_PATH, load_index, retrieve
+from src.rag.test_retrieval import TEST_QUERIES
 
 # ---------------------------------------------------------------------------
 # 1. Hit rate @3 / top-1 accuracy
