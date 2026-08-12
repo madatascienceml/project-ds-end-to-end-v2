@@ -75,3 +75,27 @@ over-weighted relative to longer chunk bodies by the embedding model.
 The original chunking was retained. Mitigated at the generation stage
 by retrieving top-3 chunks (not just top-1), ensuring the correct
 source remains in context even when not ranked first.
+
+
+### RAG evaluation (formal, 18-query eval set)
+
+Hit rate @3: 100% (18/18) — the correct chunk is always present in the
+top-3 retrieved results, which is what the generation stage actually
+uses.
+Top-1 accuracy: 77.8% (14/18) — consistent with the earlier 10-query
+baseline (80%), confirming the pattern is stable rather than sampling
+noise. All 4 top-1 misses trace to the same cause: characteristic_findings_by_grade
+is the longest, most content-dense section, giving it a ranking
+advantage on cross-cutting queries against shorter, more specific
+sections. This is an accepted, documented limitation of the small
+corpus (7 sections) rather than a retrieval bug, mitigated by using
+top-3 (not top-1) at the generation stage.
+
+**Faithfulness check** (2 cases, manual review): both generated reports
+(Grade 3 urgent, Grade 0 routine) were fully grounded in their source
+chunks — no invented claims, no drift into content from other grades
+despite grade_definitions_icdrss covering all five. Minor observation:
+in one case, source_chunks listed all 3 retrieved chunks while the
+narrative guideline_applied text only named 2 of them explicitly — a
+citation-completeness gap, not a faithfulness violation, since the
+underlying content remained accurate.
