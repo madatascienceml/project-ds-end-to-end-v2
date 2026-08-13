@@ -177,6 +177,13 @@ trade-off curve:
 
 **[View the full dashboard on Tableau Public →](https://public.tableau.com/app/profile/manu.daza/viz/RetinalScreeningTriageSystemFigures/RetinalScreeningTriageSystemModelEvaluationDashboard)**
 
+## Demo Video
+
+A full walkthrough of the app — image upload, prediction, Grad-CAM
+heatmap, triage decision, and generated report:
+
+**[Watch the demo video](reports/retinal_triage_demo.mp4)**
+
 ## Tech Stack
 
 - **Language**: Python
