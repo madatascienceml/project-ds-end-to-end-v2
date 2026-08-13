@@ -4,9 +4,10 @@ Two tabs:
   Screening — upload a fundus image + editable (synthetic-prefilled)
               intake form, wired through: model -> triage rules -> RAG
               retrieval -> LLM report generation.
-  Insights  — a quick sanity view over data/processed/eda_summary.csv;
-              deliberately minimal, superseded by the Tableau dashboard
-              planned for Block 20.
+  Insights  — static model/RAG performance figures, a live summary of
+              cases processed in the current browser session, a link to
+              the full Tableau dashboard, and a minimal EDA sanity view
+              over data/processed/eda_summary.csv.
 
 Not a diagnostic device. Every screen in the Screening tab carries that
 notice — see the disclaimer constant below.
@@ -33,6 +34,21 @@ from src.rules.triage import triage_decision  # noqa: E402
 MODEL_PATH = REPO_ROOT / "models" / "efficientnetb0_finetuned_patched.keras"
 SYNTHETIC_INTAKE_PATH = REPO_ROOT / "data" / "synthetic" / "synthetic_intake_demo.csv"
 EDA_SUMMARY_PATH = REPO_ROOT / "data" / "processed" / "eda_summary.csv"
+
+# Static model/RAG performance figures for the Insights tab. Hardcoded,
+# not recomputed live — these are the fine-tuned model's validation-set
+# results (docs/experiments.md, data/processed/confusion_matrix.csv) and
+# the RAG retrieval eval (src/rag/eval_rag.py), not something this app
+# session can regenerate on its own.
+MODEL_QWK = 0.7987
+PER_GRADE_RECALL = {0: 0.952, 1: 0.309, 2: 0.353, 3: 0.690, 4: 0.455}
+RAG_HIT_RATE_AT_3 = 1.00
+RAG_HIT_RATE_AT_1 = 0.778
+TABLEAU_DASHBOARD_URL = (
+    "https://public.tableau.com/app/profile/manu.daza/viz/"
+    "RetinalScreeningTriageSystemFigures/"
+    "RetinalScreeningTriageSystemModelEvaluationDashboard"
+)
 
 IMG_SIZE = 224
 GRADE_LABELS = {
@@ -246,6 +262,21 @@ with tab_screening:
             }
             decision = triage_decision(predicted_grade, confidence, patient_params)
 
+            # Session-only case tracking for the Insights tab (Section 2).
+            # Recorded here — right after the rule engine succeeds — rather
+            # than after report generation, since automation rate is a
+            # rule-engine property, independent of whether the downstream
+            # LLM report succeeds. Resets on page reload (session_state is
+            # per-browser-session, not persisted anywhere).
+            if "processed_cases" not in st.session_state:
+                st.session_state.processed_cases = []
+            st.session_state.processed_cases.append({
+                "predicted_grade": predicted_grade,
+                "confidence": confidence,
+                "action": decision["action"],
+                "requires_human_review": decision["requires_human_review"],
+            })
+
             index_data, index_error = load_guideline_index()
             if index_data is None:
                 st.error(
@@ -299,10 +330,74 @@ with tab_screening:
             st.warning(DEVICE_NOTICE)
 
 with tab_insights:
+    # --- 1. Model performance (static) ---
+    st.subheader("Model performance")
+    st.caption(
+        "Fine-tuned EfficientNetB0, validation set. Figures are fixed "
+        "results from training/evaluation (docs/experiments.md), not "
+        "recomputed live by this app."
+    )
+
+    st.metric("Quadratic Weighted Kappa (QWK)", f"{MODEL_QWK:.4f}")
+
+    recall_df = pd.DataFrame({
+        "Grade": [f"{g} — {GRADE_LABELS[g]}" for g in sorted(PER_GRADE_RECALL)],
+        "Recall": [PER_GRADE_RECALL[g] for g in sorted(PER_GRADE_RECALL)],
+    }).set_index("Grade")
+    st.write("Per-grade recall")
+    st.dataframe(recall_df.style.format({"Recall": "{:.3f}"}), use_container_width=True)
+
+    rag_col1, rag_col2 = st.columns(2)
+    rag_col1.metric("RAG hit rate @3", f"{RAG_HIT_RATE_AT_3:.0%}")
+    rag_col2.metric("RAG hit rate @1", f"{RAG_HIT_RATE_AT_1:.0%}")
+
+    st.divider()
+
+    # --- 2. This session (dynamic) ---
+    st.subheader("This session")
+    processed_cases = st.session_state.get("processed_cases", [])
+
+    if not processed_cases:
+        st.info(
+            "No cases processed yet this session. Upload an image and "
+            "click \"Generate Report\" in the Screening tab to populate "
+            "this section."
+        )
+    else:
+        cases_df = pd.DataFrame(processed_cases)
+
+        st.metric("Cases processed this session", len(cases_df))
+
+        grade_counts = cases_df["predicted_grade"].value_counts().sort_index()
+        grade_counts.index = [f"Grade {g}" for g in grade_counts.index]
+        st.write("Grade distribution (this session)")
+        st.bar_chart(grade_counts)
+
+        automation_rate = (~cases_df["requires_human_review"]).mean()
+        st.metric("Automation rate (this session)", f"{automation_rate:.0%}")
+        st.caption(
+            f"{(~cases_df['requires_human_review']).sum()} of {len(cases_df)} "
+            f"cases did not require forced human review."
+        )
+
+    st.divider()
+
+    # --- 3. Full dashboard ---
+    st.subheader("Full dashboard")
+    st.markdown(
+        f"For the complete picture — class distribution, image quality by "
+        f"class, confusion matrix, and the automation-vs-recall trade-off "
+        f"curve — see the full interactive dashboard:\n\n"
+        f"**[View the Tableau dashboard →]({TABLEAU_DASHBOARD_URL})**"
+    )
+
+    st.divider()
+
+    # --- 4. EDA (dataset-level, kept from the original implementation) ---
     st.subheader("EDA insights")
     st.caption(
-        "Deliberately minimal — superseded by the Tableau dashboard "
-        "(Block 20); shown here only as a quick sanity view."
+        "Deliberately minimal — superseded by the Tableau dashboard above; "
+        "shown here only as a quick sanity view over the training dataset."
     )
 
     try:
