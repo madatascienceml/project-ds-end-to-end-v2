@@ -17,6 +17,7 @@ env/
 
 # --- Secrets / credentials ---
 .env
+.env.*
 kaggle.json
 .streamlit/secrets.toml
 
