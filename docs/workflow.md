@@ -130,7 +130,13 @@ Mirrors the GitHub Projects board one-to-one: 23 blocks, 23 cards.
 - [ ] Generate heatmaps for 2-3 examples per grade
 - [ ] Qualitative clinical validation: is attention where it should be?
   > If a grade-4 heatmap highlights the image border, that is a real finding worth presenting.
-- [ ] Save example heatmaps for the presentation
+- [ ] Grad-CAM output: implemented as a live overlay in the Streamlit
+  app's Screening tab (Block 18, `src/models/gradcam.py`), shown
+  alongside the original image for every uploaded case — not as
+  static exported images.
+  > `reports/figures/` remains reserved for static exports (e.g.
+  > presentation slides) if needed later — it is not a pending
+  > deliverable from this block.
 
 ### Block 11 — Rule engine (1.5h) — `src/rules/`, `tests/`
 
