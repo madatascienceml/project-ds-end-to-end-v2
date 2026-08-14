@@ -184,6 +184,10 @@ heatmap, triage decision, and generated report:
 
 **[Watch the demo video](reports/retinal_triage_demo.mp4)**
 
+## Presentation
+
+**[Presentation slides (PDF)](reports/retinal_triage_deck.pdf)**
+
 ## Tech Stack
 
 - **Language**: Python
